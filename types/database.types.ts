@@ -6,19 +6,16 @@ export interface Database {
           id: string;
           name: string;
           created_at: string;
-          current_streak: number;
         };
         Insert: {
           id?: string;
           name: string;
           created_at?: string;
-          current_streak?: number;
         };
         Update: {
           id?: string;
           name?: string;
           created_at?: string;
-          current_streak?: number;
         };
       };
       bets: {

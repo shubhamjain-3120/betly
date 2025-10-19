@@ -39,7 +39,6 @@ export interface User {
   id: string;
   name: string;
   created_at: string;
-  current_streak: number;
   couple_id: string;
   auth_token: string;
   is_paired: boolean;

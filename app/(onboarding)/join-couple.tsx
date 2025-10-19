@@ -23,50 +23,74 @@ export default function JoinCoupleScreen() {
   const [isJoining, setIsJoining] = useState(false);
 
   const handleJoinCouple = async () => {
+    console.log('🚀 Starting join couple process...');
+    
     if (!name.trim()) {
+      console.log('❌ No name provided');
       Alert.alert('Error', 'Please enter your name');
       return;
     }
 
     if (!coupleCode.trim()) {
+      console.log('❌ No couple code provided');
       Alert.alert('Error', 'Please enter the couple code');
       return;
     }
 
-    if (!isValidCoupleCode(coupleCode.trim().toUpperCase())) {
+    const code = coupleCode.trim().toUpperCase();
+    console.log('🔍 Validating couple code:', code);
+    
+    if (!isValidCoupleCode(code)) {
+      console.log('❌ Invalid couple code format:', code);
       Alert.alert('Error', 'Please enter a valid 6-character code');
       return;
     }
 
+    console.log('✅ Couple code format is valid');
     setIsJoining(true);
 
     try {
-      const code = coupleCode.trim().toUpperCase();
+      console.log('🔍 Checking if couple can accept new member...');
       
       // Check if couple can accept new member
       const canJoin = await canJoinCouple(code);
+      console.log('📊 Can join couple result:', canJoin);
+      
       if (!canJoin) {
+        console.log('❌ Cannot join couple - invalid code or already full');
         Alert.alert('Error', 'Invalid couple code or couple is already full');
         return;
       }
 
       // Get couple info
+      console.log('🔍 Fetching couple info for code:', code);
       const { data: couples, error: coupleError } = await supabase
         .from('couples')
         .select('id')
         .eq('couple_code', code);
 
-      if (coupleError || !couples || couples.length === 0) {
+      if (coupleError) {
+        console.error('❌ Error fetching couple:', coupleError);
+        Alert.alert('Error', 'Database error: ' + coupleError.message);
+        return;
+      }
+
+      if (!couples || couples.length === 0) {
+        console.log('❌ No couple found with code:', code);
         Alert.alert('Error', 'Invalid couple code');
         return;
       }
 
       const couple = couples[0];
+      console.log('✅ Found couple:', couple.id);
 
       // Generate auth token
+      console.log('🔑 Generating auth token...');
       const authToken = generateAuthToken();
+      console.log('✅ Auth token generated');
 
       // Create user record
+      console.log('👤 Creating user record...');
       const { data: users, error: userError } = await supabase
         .from('users')
         .insert({
@@ -77,27 +101,44 @@ export default function JoinCoupleScreen() {
         })
         .select();
 
-      if (userError || !users || users.length === 0) {
-        throw userError || new Error('Failed to create user');
+      if (userError) {
+        console.error('❌ Error creating user:', userError);
+        throw userError;
+      }
+
+      if (!users || users.length === 0) {
+        console.error('❌ No user data returned after creation');
+        throw new Error('Failed to create user');
       }
 
       const user = users[0];
+      console.log('✅ User created:', user.id);
 
       // Get the existing partner
+      console.log('🔍 Looking for existing partner in couple:', couple.id);
       const { data: partners, error: partnerError } = await supabase
         .from('users')
         .select('id, name')
         .eq('couple_id', couple.id)
         .neq('id', user.id);
 
-      if (partnerError || !partners || partners.length === 0) {
+      if (partnerError) {
+        console.error('❌ Error fetching partner:', partnerError);
+        Alert.alert('Error', 'Database error: ' + partnerError.message);
+        return;
+      }
+
+      if (!partners || partners.length === 0) {
+        console.log('❌ No partner found in couple');
         Alert.alert('Error', 'Could not find partner');
         return;
       }
 
       const partner = partners[0];
+      console.log('✅ Found partner:', partner.name, partner.id);
 
       // Update both users to be paired
+      console.log('🔗 Updating user to be paired with partner...');
       const { error: updateUserError } = await supabase
         .from('users')
         .update({
@@ -106,8 +147,13 @@ export default function JoinCoupleScreen() {
         })
         .eq('id', user.id);
 
-      if (updateUserError) throw updateUserError;
+      if (updateUserError) {
+        console.error('❌ Error updating user:', updateUserError);
+        throw updateUserError;
+      }
+      console.log('✅ User updated to be paired');
 
+      console.log('🔗 Updating partner to be paired with user...');
       const { error: updatePartnerError } = await supabase
         .from('users')
         .update({
@@ -116,31 +162,41 @@ export default function JoinCoupleScreen() {
         })
         .eq('id', partner.id);
 
-      if (updatePartnerError) throw updatePartnerError;
+      if (updatePartnerError) {
+        console.error('❌ Error updating partner:', updatePartnerError);
+        throw updatePartnerError;
+      }
+      console.log('✅ Partner updated to be paired');
+      console.log('🎉 Join couple process completed successfully!');
 
-      Alert.alert(
-        'Welcome to the couple! 🎉',
-        `You've successfully joined ${partner.name}'s couple!\n\nYou can now start betting together.`,
-        [
-          {
-            text: 'Start Betting',
-            onPress: () => {
-              // Store auth token and navigate to app
-              const { storeAuthToken } = require('../../lib/auth');
-              storeAuthToken(authToken).then(() => {
-                // Force a page reload to trigger auth state change
-                setTimeout(() => {
-                  window.location.reload();
-                }, 500);
-              });
-            },
-          },
-        ]
-      );
+      // Store auth token and navigate to app immediately
+      console.log('🚀 Storing auth token and navigating...');
+      const { storeAuthToken } = require('../../lib/auth');
+      
+      try {
+        await storeAuthToken(authToken);
+        console.log('✅ Auth token stored successfully');
+        console.log('🔄 Redirecting to main app...');
+        
+        // Directly reload to show main app
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      } catch (error) {
+        console.error('❌ Error storing auth token:', error);
+        Alert.alert('Error', 'Failed to store authentication. Please try again.');
+      }
     } catch (error) {
-      console.error('Error joining couple:', error);
-      Alert.alert('Error', 'Failed to join couple');
+      console.error('❌ Error joining couple:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      Alert.alert('Error', 'Failed to join couple: ' + (error.message || 'Unknown error'));
     } finally {
+      console.log('🏁 Join couple process finished');
       setIsJoining(false);
     }
   };

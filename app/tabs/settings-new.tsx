@@ -9,6 +9,8 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Clipboard,
+  Share,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { getCurrentUser, logout } from '../../lib/auth';
@@ -16,6 +18,7 @@ import { getCurrentUser, logout } from '../../lib/auth';
 export default function SettingsScreen() {
   const [name, setName] = useState('');
   const [partnerName, setPartnerName] = useState('');
+  const [coupleCode, setCoupleCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -30,6 +33,18 @@ export default function SettingsScreen() {
 
       setCurrentUser(user);
       setName(user.name);
+
+      // Load couple code
+      if (user.couple_id) {
+        const { data: couples, error } = await supabase
+          .from('couples')
+          .select('couple_code')
+          .eq('id', user.couple_id);
+
+        if (!error && couples && couples.length > 0) {
+          setCoupleCode(couples[0].couple_code);
+        }
+      }
 
       // Load partner name if paired
       if (user.is_paired && user.partner_id) {
@@ -125,15 +140,13 @@ export default function SettingsScreen() {
 
       Alert.alert(
         'Partner Unlinked',
-        'You have been unlinked from your partner. You can now join a different couple or create a new one.',
+        'You have been unlinked from your partner. You can now join a different couple.',
         [
           {
             text: 'OK',
             onPress: () => {
-              // Logout and return to onboarding
-              logout().then(() => {
-                // The app will automatically redirect to onboarding
-              });
+              // Reload user data to reflect the unlink
+              loadCurrentUser();
             },
           },
         ]
@@ -141,6 +154,27 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('Error unlinking partner:', error);
       Alert.alert('Error', 'Failed to unlink partner');
+    }
+  };
+
+  const shareCoupleCode = async (code: string) => {
+    try {
+      await Share.share({
+        message: `Join me on Bet Together! Use this code: ${code}`,
+        title: 'Join my betting couple!',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const copyCoupleCode = async (code: string) => {
+    try {
+      await Clipboard.setString(code);
+      Alert.alert('Copied!', 'Couple code copied to clipboard');
+    } catch (error) {
+      console.error('Error copying:', error);
+      Alert.alert('Error', 'Failed to copy code');
     }
   };
 
@@ -216,6 +250,39 @@ export default function SettingsScreen() {
                 >
                   <Text style={styles.unlinkButtonText}>Unlink Partner</Text>
                 </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Invite Section - Show when no partner is linked */}
+          {currentUser && !currentUser.is_paired && coupleCode && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Invite Your Partner</Text>
+              <View style={styles.inviteCard}>
+                <Text style={styles.inviteTitle}>Share your couple code</Text>
+                <Text style={styles.inviteDescription}>
+                  Give this code to your partner so they can join your couple:
+                </Text>
+                
+                <View style={styles.codeContainer}>
+                  <Text style={styles.coupleCode}>{coupleCode}</Text>
+                </View>
+                
+                <View style={styles.inviteButtons}>
+                  <TouchableOpacity
+                    style={styles.shareButton}
+                    onPress={() => shareCoupleCode(coupleCode)}
+                  >
+                    <Text style={styles.shareButtonText}>Share Code</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.copyButton}
+                    onPress={() => copyCoupleCode(coupleCode)}
+                  >
+                    <Text style={styles.copyButtonText}>Copy Code</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
@@ -333,6 +400,69 @@ const styles = StyleSheet.create({
   unlinkButtonText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  inviteCard: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  inviteTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  inviteDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+    lineHeight: 20,
+  },
+  codeContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  coupleCode: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    letterSpacing: 2,
+  },
+  inviteButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  shareButton: {
+    flex: 1,
+    backgroundColor: '#34C759',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  copyButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  copyButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
   logoutButton: {

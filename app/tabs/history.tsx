@@ -12,22 +12,12 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, Bet } from '../../lib/supabase';
 
-interface UserStats {
-  id: string;
-  name: string;
-  totalWins: number;
-  totalAmount: number;
-  winRate: number;
-  currentStreak: number;
-}
 
 export default function HistoryScreen() {
   const [bets, setBets] = useState<Bet[]>([]);
-  const [userStats, setUserStats] = useState<UserStats[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [activeSection, setActiveSection] = useState<'stats' | 'history'>('stats');
 
   const loadAllData = async () => {
     try {
@@ -40,60 +30,20 @@ export default function HistoryScreen() {
         return;
       }
 
-      // Load users and concluded bets for current couple
-      const [usersResult, betsResult] = await Promise.all([
-        supabase.from('users').select('id, name').eq('couple_id', coupleId),
-        supabase.from('bets').select('*').eq('status', 'concluded').eq('couple_id', coupleId).order('concluded_at', { ascending: false })
-      ]);
+      // Load concluded bets for current couple
+      const { data: concludedBets, error: betsError } = await supabase
+        .from('bets')
+        .select('*')
+        .eq('status', 'concluded')
+        .eq('couple_id', coupleId)
+        .order('concluded_at', { ascending: false });
 
-      if (usersResult.error) throw usersResult.error;
-      if (betsResult.error) throw betsResult.error;
+      if (betsError) throw betsError;
 
-      const users = usersResult.data || [];
-      const concludedBets = betsResult.data || [];
-
-      // Create user stats with actual names
-      const userStats: UserStats[] = users.map(user => ({
-        id: user.id,
-        name: user.name,
-        totalWins: 0,
-        totalAmount: 0,
-        winRate: 0,
-        currentStreak: 0,
-      }));
-
-      // Calculate stats from concluded bets
-      if (concludedBets.length > 0) {
-        concludedBets.forEach((bet) => {
-          const creatorWon = bet.winner_option === bet.creator_choice;
-          const winnerIndex = creatorWon ? 0 : 1;
-          const loserIndex = creatorWon ? 1 : 0;
-
-          // Update winner stats
-          if (userStats[winnerIndex]) {
-            userStats[winnerIndex].totalWins += 1;
-            userStats[winnerIndex].totalAmount += bet.amount;
-            userStats[winnerIndex].currentStreak += 1;
-          }
-          
-          // Reset loser streak
-          if (userStats[loserIndex]) {
-            userStats[loserIndex].currentStreak = 0;
-          }
-        });
-
-        // Calculate win rates
-        const totalBets = concludedBets.length;
-        userStats.forEach((user) => {
-          user.winRate = totalBets > 0 ? (user.totalWins / totalBets) * 100 : 0;
-        });
-      }
-
-      setUserStats(userStats);
-      setBets(concludedBets);
+      setBets(concludedBets || []);
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load history and stats');
+      Alert.alert('Error', 'Failed to load history');
     }
   };
 
@@ -131,34 +81,6 @@ export default function HistoryScreen() {
     return bet.winner_option === bet.creator_choice ? '#34C759' : '#FF3B30';
   };
 
-  const renderUserCard = (user: UserStats, index: number) => (
-    <View style={[styles.userCard, index === 0 && styles.winnerCard]}>
-      <View style={styles.userHeader}>
-        <Text style={styles.userRank}>#{index + 1}</Text>
-        <Text style={styles.userName}>{user.name}</Text>
-        {index === 0 && <Text style={styles.winnerBadge}>👑</Text>}
-      </View>
-      
-      <View style={styles.userStats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{user.totalWins}</Text>
-          <Text style={styles.statLabel}>Wins</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>₹{user.totalAmount}</Text>
-          <Text style={styles.statLabel}>Won</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{user.winRate.toFixed(1)}%</Text>
-          <Text style={styles.statLabel}>Win Rate</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{user.currentStreak}</Text>
-          <Text style={styles.statLabel}>Streak</Text>
-        </View>
-      </View>
-    </View>
-  );
 
   const renderBetCard = (bet: Bet) => (
     <TouchableOpacity key={bet.id} style={styles.betCard} onPress={() => openBetDetails(bet)}>
@@ -187,12 +109,6 @@ export default function HistoryScreen() {
     </TouchableOpacity>
   );
 
-  const renderStatsSection = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>🏆 Leaderboard</Text>
-      {userStats.map((user, index) => renderUserCard(user, index))}
-    </View>
-  );
 
   const renderHistorySection = () => (
     <View style={styles.section}>
@@ -222,25 +138,6 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Navigation Buttons */}
-      <View style={styles.navigationContainer}>
-        <TouchableOpacity
-          style={[styles.navButton, activeSection === 'stats' && styles.activeNavButton]}
-          onPress={() => setActiveSection('stats')}
-        >
-          <Text style={[styles.navButtonText, activeSection === 'stats' && styles.activeNavButtonText]}>
-            Stats
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.navButton, activeSection === 'history' && styles.activeNavButton]}
-          onPress={() => setActiveSection('history')}
-        >
-          <Text style={[styles.navButtonText, activeSection === 'history' && styles.activeNavButtonText]}>
-            History
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -249,7 +146,7 @@ export default function HistoryScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {activeSection === 'stats' ? renderStatsSection() : renderHistorySection()}
+        {renderHistorySection()}
       </ScrollView>
 
       {/* Bet Details Modal */}
@@ -304,36 +201,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  navigationContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    margin: 15,
-    borderRadius: 10,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  navButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  activeNavButton: {
-    backgroundColor: '#007AFF',
-  },
-  navButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  activeNavButtonText: {
-    color: '#fff',
-  },
   scrollView: {
     flex: 1,
   },
@@ -345,59 +212,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 15,
-  },
-  userCard: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  winnerCard: {
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    backgroundColor: '#FFFACD',
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  userRank: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginRight: 10,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-  },
-  winnerBadge: {
-    fontSize: 20,
-  },
-  userStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
   },
   betCard: {
     backgroundColor: '#fff',

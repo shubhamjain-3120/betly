@@ -206,6 +206,12 @@ export default function CreateCoupleScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
             <Text style={styles.title}>Create Your Couple</Text>
             <Text style={styles.subtitle}>
               Set up your betting account and invite your partner
@@ -263,6 +269,19 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 40,
     alignItems: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
   },
   title: {
     fontSize: 28,

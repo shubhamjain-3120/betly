@@ -19,7 +19,6 @@ export default function HomeScreen() {
     totalWins: 0,
     totalAmount: 0,
     winRate: 0,
-    currentStreak: 0,
   });
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
@@ -90,7 +89,6 @@ export default function HomeScreen() {
         totalWins: userWins,
         totalAmount: totalAmount,
         winRate: winRate,
-        currentStreak: 0, // TODO: Calculate actual streak
       });
 
       console.log('✅ Data loaded successfully');
@@ -251,10 +249,6 @@ export default function HomeScreen() {
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{userStats.winRate.toFixed(1)}%</Text>
               <Text style={styles.statLabel}>Win Rate</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{userStats.currentStreak}</Text>
-              <Text style={styles.statLabel}>Streak</Text>
             </View>
           </View>
         </View>

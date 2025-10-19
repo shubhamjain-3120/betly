@@ -57,32 +57,47 @@ export const isValidCoupleCode = (code: string): boolean => {
 // Check if couple can accept new member
 export const canJoinCouple = async (coupleCode: string): Promise<boolean> => {
   try {
+    console.log('🔍 Checking if couple can accept new member for code:', coupleCode);
+    
     // Check if couple exists
     const { data: couples, error: coupleError } = await supabase
       .from('couples')
       .select('id')
       .eq('couple_code', coupleCode);
 
-    if (coupleError || !couples || couples.length === 0) {
+    if (coupleError) {
+      console.error('❌ Error checking couple existence:', coupleError);
+      return false;
+    }
+
+    if (!couples || couples.length === 0) {
+      console.log('❌ Couple not found with code:', coupleCode);
       return false;
     }
 
     const couple = couples[0];
+    console.log('✅ Couple found:', couple.id);
 
     // Check how many members the couple has
+    console.log('🔍 Checking member count for couple:', couple.id);
     const { data: members, error: membersError } = await supabase
       .from('users')
       .select('id')
       .eq('couple_id', couple.id);
 
     if (membersError) {
+      console.error('❌ Error checking members:', membersError);
       return false;
     }
 
+    console.log('📊 Member count:', members.length);
+    
     // Couple can only have 1 member (waiting for partner)
-    return members.length === 1;
+    const canJoin = members.length === 1;
+    console.log('✅ Can join couple:', canJoin);
+    return canJoin;
   } catch (error) {
-    console.error('Error checking if couple can join:', error);
+    console.error('❌ Error checking if couple can join:', error);
     return false;
   }
 };
