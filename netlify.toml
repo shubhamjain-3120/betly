@@ -7,16 +7,6 @@
   NPM_FLAGS = "--production=false"
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
-# Disable automatic plugin detection
-[build.processing]
-  skip_processing = false
-
-# Explicitly disable Next.js plugin
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-  [plugins.inputs]
-    skip = true
-
 [[redirects]]
   from = "/*"
   to = "/index.html"
