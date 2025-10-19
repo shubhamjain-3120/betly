@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, Bet, testSupabaseConnection } from '../../lib/supabase';
+import { getCurrentUser } from '../../lib/auth';
 
 export default function HomeScreen() {
   const [activeBets, setActiveBets] = useState<Bet[]>([]);
   const [userStats, setUserStats] = useState({
+    totalBets: 0,
     totalWins: 0,
     totalAmount: 0,
     winRate: 0,
@@ -25,6 +27,7 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [deletingBetId, setDeletingBetId] = useState<string | null>(null);
+  const [coupleUsers, setCoupleUsers] = useState<{[key: string]: string}>({});
 
 
   const loadAllData = async () => {
@@ -74,18 +77,69 @@ export default function HomeScreen() {
       // Update state
       setActiveBets(activeData || []);
 
-      // Calculate user stats
-      const userWins = concludedBets?.filter(bet => 
-        bet.winner_option === bet.creator_choice
-      ).length || 0;
-      
-      const totalAmount = concludedBets?.filter(bet => 
-        bet.winner_option === bet.creator_choice
-      ).reduce((sum, bet) => sum + bet.amount, 0) || 0;
+      // Calculate user stats for current user
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        console.error('❌ No current user found');
+        return;
+      }
 
-      const winRate = concludedBets?.length > 0 ? (userWins / concludedBets.length) * 100 : 0;
+      // Get all users in the couple to determine who won each bet
+      const { data: coupleUsersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, name')
+        .eq('couple_id', coupleId);
+
+      if (usersError) {
+        console.error('❌ Error loading couple users:', usersError);
+        return;
+      }
+
+      // Store couple users for display
+      const usersMap: {[key: string]: string} = {};
+      coupleUsersData?.forEach(user => {
+        usersMap[user.id] = user.name;
+      });
+      setCoupleUsers(usersMap);
+
+      // Calculate stats for current user
+      let userWins = 0;
+      let totalAmount = 0;
+      let totalBets = 0;
+
+      for (const bet of concludedBets || []) {
+        // Check if current user participated in this bet (either as creator or partner)
+        const isCreator = bet.creator_id === currentUser.id;
+        const isPartner = coupleUsersData?.some(user => 
+          user.id === currentUser.id && user.id !== bet.creator_id
+        );
+
+        if (isCreator || isPartner) {
+          totalBets++;
+          
+          // Determine who won this bet
+          let winnerId: string;
+          if (bet.winner_option === bet.creator_choice) {
+            // Creator won
+            winnerId = bet.creator_id;
+          } else {
+            // Partner won - find the partner ID
+            const partner = coupleUsersData?.find(user => user.id !== bet.creator_id);
+            winnerId = partner?.id || '';
+          }
+
+          // If current user won this bet
+          if (winnerId === currentUser.id) {
+            userWins++;
+            totalAmount += bet.amount;
+          }
+        }
+      }
+
+      const winRate = totalBets > 0 ? (userWins / totalBets) * 100 : 0;
 
       setUserStats({
+        totalBets: totalBets,
         totalWins: userWins,
         totalAmount: totalAmount,
         winRate: winRate,
@@ -239,6 +293,10 @@ export default function HomeScreen() {
           <Text style={styles.statsTitle}>Your Stats</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
+              <Text style={styles.statValue}>{userStats.totalBets}</Text>
+              <Text style={styles.statLabel}>Bets</Text>
+            </View>
+            <View style={styles.statItem}>
               <Text style={styles.statValue}>{userStats.totalWins}</Text>
               <Text style={styles.statLabel}>Wins</Text>
             </View>
@@ -274,10 +332,10 @@ export default function HomeScreen() {
                     <Text style={styles.betAmount}>₹{bet.amount}</Text>
                     <View style={styles.betOptions}>
                       <Text style={styles.optionText}>
-                        A: {bet.option_a} {bet.creator_choice === 'a' ? '(You)' : ''}
+                        A: {bet.option_a} {bet.creator_choice === 'a' ? `(${coupleUsers[bet.creator_id] || 'Creator'})` : ''}
                       </Text>
                       <Text style={styles.optionText}>
-                        B: {bet.option_b} {bet.creator_choice === 'b' ? '(You)' : ''}
+                        B: {bet.option_b} {bet.creator_choice === 'b' ? `(${coupleUsers[bet.creator_id] || 'Creator'})` : ''}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -402,10 +460,13 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
   },
   statItem: {
     alignItems: 'center',
+    flex: 1,
+    minWidth: '22%',
   },
   statValue: {
     fontSize: 20,

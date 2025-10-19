@@ -18,6 +18,7 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [winnerTexts, setWinnerTexts] = useState<{[key: string]: string}>({});
 
   const loadAllData = async () => {
     try {
@@ -41,6 +42,16 @@ export default function HistoryScreen() {
       if (betsError) throw betsError;
 
       setBets(concludedBets || []);
+
+      // Load winner texts for all bets
+      if (concludedBets && concludedBets.length > 0) {
+        const winnerTextsMap: {[key: string]: string} = {};
+        for (const bet of concludedBets) {
+          const winnerText = await getWinnerText(bet);
+          winnerTextsMap[bet.id] = winnerText;
+        }
+        setWinnerTexts(winnerTextsMap);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Error', 'Failed to load history');
@@ -69,11 +80,42 @@ export default function HistoryScreen() {
     });
   };
 
-  const getWinnerText = (bet: Bet) => {
-    if (bet.winner_option === bet.creator_choice) {
-      return 'Creator won';
-    } else {
-      return 'Approver won';
+  const getWinnerText = async (bet: Bet) => {
+    try {
+      // Get current user to determine who won
+      const { getCurrentUser } = await import('../../lib/auth');
+      const currentUser = await getCurrentUser();
+      
+      if (!currentUser) {
+        return 'Unknown won';
+      }
+
+      // Determine who won based on winner_option and creator_choice
+      let winnerId: string;
+      if (bet.winner_option === bet.creator_choice) {
+        // Creator won
+        winnerId = bet.creator_id;
+      } else {
+        // Partner won - get partner ID from current user
+        winnerId = currentUser.partner_id || '';
+      }
+
+      // Fetch winner's name
+      const { data: winnerData, error } = await supabase
+        .from('users')
+        .select('name')
+        .eq('id', winnerId)
+        .single();
+
+      if (error || !winnerData) {
+        console.error('Error fetching winner name:', error);
+        return 'Unknown won';
+      }
+
+      return `${winnerData.name} won`;
+    } catch (error) {
+      console.error('Error getting winner text:', error);
+      return 'Unknown won';
     }
   };
 
@@ -94,7 +136,7 @@ export default function HistoryScreen() {
           Concluded: {formatDate(bet.concluded_at || '')}
         </Text>
         <Text style={[styles.winnerText, { color: getWinnerColor(bet) }]}>
-          {getWinnerText(bet)}
+          {winnerTexts[bet.id] || 'Loading...'}
         </Text>
       </View>
 
@@ -169,7 +211,7 @@ export default function HistoryScreen() {
                   Concluded: {formatDate(selectedBet.concluded_at || '')}
                 </Text>
                 <Text style={[styles.modalWinnerText, { color: getWinnerColor(selectedBet) }]}>
-                  Winner: {getWinnerText(selectedBet)}
+                  Winner: {winnerTexts[selectedBet.id] || 'Loading...'}
                 </Text>
               </View>
 
