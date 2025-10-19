@@ -9,6 +9,7 @@ try {
   if (config.SUPABASE_CONFIG) {
     supabaseUrl = config.SUPABASE_CONFIG.url;
     supabaseAnonKey = config.SUPABASE_CONFIG.anonKey;
+    console.log('✅ Supabase config loaded successfully');
   }
 } catch (error) {
   // Config file doesn't exist, use placeholders
@@ -29,12 +30,27 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// Debug: Log the configuration being used
+console.log('🔧 Supabase URL:', supabaseUrl);
+console.log('🔧 Supabase Key (first 20 chars):', supabaseAnonKey.substring(0, 20) + '...');
+
 // Database types
 export interface User {
   id: string;
   name: string;
   created_at: string;
   current_streak: number;
+  couple_id: string;
+  auth_token: string;
+  is_paired: boolean;
+  partner_id: string | null;
+}
+
+export interface Couple {
+  id: string;
+  couple_code: string;
+  created_at: string;
+  created_by_user_id: string;
 }
 
 export interface Bet {
@@ -50,7 +66,20 @@ export interface Bet {
   created_at: string;
   concluded_at: string | null;
   concluded_by_id: string | null;
+  couple_id: string;
 }
+
+// Helper function to get current couple ID
+export const getCurrentCoupleId = async (): Promise<string | null> => {
+  try {
+    const { getCurrentUser } = await import('./auth');
+    const user = await getCurrentUser();
+    return user?.couple_id || null;
+  } catch (error) {
+    console.error('Error getting current couple ID:', error);
+    return null;
+  }
+};
 
 // Helper function to test Supabase connection
 export const testSupabaseConnection = async (): Promise<boolean> => {

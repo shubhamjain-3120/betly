@@ -13,9 +13,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { getCurrentUser, logout } from '../../lib/auth';
 
-export default function SettingsScreen({ onLogout }: { onLogout?: () => void }) {
-  console.log('⚙️ SettingsScreen rendered with onLogout:', !!onLogout);
-  
+export default function SettingsScreen() {
   const [name, setName] = useState('');
   const [partnerName, setPartnerName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +81,18 @@ export default function SettingsScreen({ onLogout }: { onLogout?: () => void }) 
   };
 
   const handleUnlinkPartner = () => {
-    unlinkPartner();
+    Alert.alert(
+      'Unlink Partner',
+      'Are you sure you want to unlink from your partner? This will allow you to join a different couple, but your betting history will be preserved.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unlink',
+          style: 'destructive',
+          onPress: unlinkPartner,
+        },
+      ]
+    );
   };
 
   const unlinkPartner = async () => {
@@ -114,46 +123,53 @@ export default function SettingsScreen({ onLogout }: { onLogout?: () => void }) 
 
       if (updatePartnerError) throw updatePartnerError;
 
-      // Logout and return to onboarding
-      try {
-        await logout();
-        console.log('✅ Unlink successful, triggering auth check...');
-        if (onLogout) {
-          onLogout();
-        }
-      } catch (error) {
-        console.error('❌ Error during unlink logout:', error);
-      }
+      Alert.alert(
+        'Partner Unlinked',
+        'You have been unlinked from your partner. You can now join a different couple or create a new one.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Logout and return to onboarding
+              logout().then(() => {
+                // The app will automatically redirect to onboarding
+              });
+            },
+          },
+        ]
+      );
     } catch (error) {
       console.error('Error unlinking partner:', error);
       Alert.alert('Error', 'Failed to unlink partner');
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      console.log('🚪 Logging out...');
-      await logout();
-      console.log('✅ Logout successful, triggering auth check...');
-      
-      // Trigger auth check to redirect to onboarding
-      if (onLogout) {
-        console.log('🔄 Calling onLogout callback...');
-        onLogout();
-      } else {
-        console.log('❌ No onLogout callback provided');
-      }
-    } catch (error) {
-      console.error('❌ Error logging out:', error);
-      Alert.alert('Error', 'Failed to logout');
-    }
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              // The app will automatically redirect to onboarding
+            } catch (error) {
+              console.error('Error logging out:', error);
+              Alert.alert('Error', 'Failed to logout');
+            }
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
-    console.log('⚙️ SettingsScreen useEffect - loading user...');
     loadCurrentUser();
   }, []);
-
 
   return (
     <KeyboardAvoidingView
@@ -207,7 +223,6 @@ export default function SettingsScreen({ onLogout }: { onLogout?: () => void }) 
           {/* Account Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account</Text>
-            
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
               <Text style={styles.logoutButtonText}>Logout</Text>
             </TouchableOpacity>

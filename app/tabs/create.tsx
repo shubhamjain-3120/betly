@@ -10,9 +10,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 
 export default function CreateBetScreen() {
+  const navigation = useNavigation();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [optionA, setOptionA] = useState('');
@@ -20,7 +22,11 @@ export default function CreateBetScreen() {
   const [selectedOption, setSelectedOption] = useState<'a' | 'b' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+
   const handleCreateBet = async () => {
+    console.log('🚀 Create bet button pressed!');
+    console.log('📝 Form data:', { title, amount, optionA, optionB, selectedOption });
+    
     // Validation
     if (!title.trim()) {
       Alert.alert('Error', 'Please enter a bet title');
@@ -46,7 +52,32 @@ export default function CreateBetScreen() {
     setIsSubmitting(true);
 
     try {
-      // Create bet in Supabase database
+      // Get current user and couple ID
+      console.log('🔐 Getting current user...');
+      const { getCurrentUser, getStoredAuthToken } = await import('../../lib/auth');
+      const { getCurrentCoupleId } = await import('../../lib/supabase');
+      
+      // Check auth token first
+      const authToken = await getStoredAuthToken();
+      console.log('🔑 Auth token:', authToken ? 'Present' : 'Missing');
+      
+      const user = await getCurrentUser();
+      const coupleId = await getCurrentCoupleId();
+      
+      console.log('👤 User:', user);
+      console.log('💑 Couple ID:', coupleId);
+      
+      if (!user || !coupleId) {
+        console.error('❌ Authentication failed - user or couple ID missing');
+        Alert.alert('Error', 'Please log in again');
+        return;
+      }
+
+      // Create bet in Supabase database - immediately active
+      console.log('💾 Inserting bet into database...');
+      console.log('👤 User ID:', user.id);
+      console.log('💑 Couple ID:', coupleId);
+      
       const { data, error } = await supabase
         .from('bets')
         .insert({
@@ -54,28 +85,32 @@ export default function CreateBetScreen() {
           amount: Number(amount),
           option_a: optionA.trim(),
           option_b: optionB.trim(),
-          creator_id: '00000000-0000-0000-0000-000000000001', // You
+          creator_id: user.id,
           creator_choice: selectedOption,
-          status: 'pending',
+          status: 'active', // Immediately active, no approval needed
+          couple_id: coupleId,
         })
-        .select()
-        .single();
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Database error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Bet created successfully:', data);
+      console.log('🏠 Navigating to home page...');
 
-      Alert.alert('Success', 'Bet created! Waiting for approval.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form
-            setTitle('');
-            setAmount('');
-            setOptionA('');
-            setOptionB('');
-            setSelectedOption(null);
-          },
-        },
-      ]);
+      // Reset form immediately after successful creation
+      setTitle('');
+      setAmount('');
+      setOptionA('');
+      setOptionB('');
+      setSelectedOption(null);
+      
+      // Navigate to home tab immediately (no confirmation dialog)
+      console.log('🏠 Navigating to Home tab...');
+      navigation.navigate('Home' as never);
+      console.log('✅ Navigation completed');
     } catch (error) {
       console.error('Error creating bet:', error);
       Alert.alert('Error', 'Failed to create bet');
@@ -183,6 +218,7 @@ export default function CreateBetScreen() {
               {isSubmitting ? 'Creating...' : 'Create Bet'}
             </Text>
           </TouchableOpacity>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
