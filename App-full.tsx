@@ -10,7 +10,6 @@ import PendingScreen from './app/tabs/pending';
 import CreateScreen from './app/tabs/create';
 import HistoryScreen from './app/tabs/history';
 import LeaderboardScreen from './app/tabs/leaderboard';
-import SettingsScreen from './app/tabs/settings';
 
 const Tab = createBottomTabNavigator();
 
@@ -51,11 +50,6 @@ export default function App() {
             name="Leaderboard" 
             component={LeaderboardScreen}
             options={{ title: 'Leaderboard' }}
-          />
-          <Tab.Screen 
-            name="Settings" 
-            component={SettingsScreen}
-            options={{ title: 'Settings' }}
           />
         </Tab.Navigator>
       </NavigationContainer>
