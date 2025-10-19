@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, Bet } from '../../lib/supabase';
+import { subscribeToConcludedBets, RealtimeSubscription } from '../../lib/realtime';
 
 
 export default function HistoryScreen() {
@@ -19,6 +20,7 @@ export default function HistoryScreen() {
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [winnerTexts, setWinnerTexts] = useState<{[key: string]: string}>({});
+  const realtimeSubscription = useRef<RealtimeSubscription | null>(null);
 
   const loadAllData = async () => {
     try {
@@ -166,15 +168,77 @@ export default function HistoryScreen() {
     </View>
   );
 
+  // Setup real-time subscription for concluded bets
+  const setupRealtimeSubscription = async () => {
+    try {
+      // Clean up existing subscription
+      if (realtimeSubscription.current) {
+        realtimeSubscription.current.unsubscribe();
+      }
+
+      // Setup new subscription for concluded bets
+      realtimeSubscription.current = await subscribeToConcludedBets({
+        onBetInsert: (newBet) => {
+          console.log('🔔 New concluded bet inserted via real-time:', newBet);
+          setBets(prevBets => [newBet, ...prevBets]);
+          // Load winner text for the new bet
+          getWinnerText(newBet).then(winnerText => {
+            setWinnerTexts(prev => ({
+              ...prev,
+              [newBet.id]: winnerText
+            }));
+          });
+        },
+        onBetUpdate: (updatedBet) => {
+          console.log('🔔 Concluded bet updated via real-time:', updatedBet);
+          setBets(prevBets => 
+            prevBets.map(bet => bet.id === updatedBet.id ? updatedBet : bet)
+          );
+          // Reload winner text for the updated bet
+          getWinnerText(updatedBet).then(winnerText => {
+            setWinnerTexts(prev => ({
+              ...prev,
+              [updatedBet.id]: winnerText
+            }));
+          });
+        },
+        onBetDelete: (deletedBetId) => {
+          console.log('🔔 Concluded bet deleted via real-time:', deletedBetId);
+          setBets(prevBets => prevBets.filter(bet => bet.id !== deletedBetId));
+          setWinnerTexts(prev => {
+            const newWinnerTexts = { ...prev };
+            delete newWinnerTexts[deletedBetId];
+            return newWinnerTexts;
+          });
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error setting up real-time subscription for history:', error);
+    }
+  };
+
   useEffect(() => {
-    loadAllData();
+    const initializeHistory = async () => {
+      await loadAllData();
+      await setupRealtimeSubscription();
+    };
+    
+    initializeHistory();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (realtimeSubscription.current) {
+        realtimeSubscription.current.unsubscribe();
+      }
+    };
   }, []);
 
   // Refresh data when the screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      console.log('🔄 History screen focused, refreshing data...');
+      console.log('🔄 History screen focused, refreshing data and setting up real-time...');
       loadAllData();
+      setupRealtimeSubscription();
     }, [])
   );
 

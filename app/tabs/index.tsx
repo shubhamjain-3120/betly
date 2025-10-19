@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, Bet, testSupabaseConnection } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
+import { subscribeToActiveBets, RealtimeSubscription } from '../../lib/realtime';
 
 export default function HomeScreen() {
   const [activeBets, setActiveBets] = useState<Bet[]>([]);
@@ -28,6 +29,7 @@ export default function HomeScreen() {
   const [forceRefresh, setForceRefresh] = useState(0);
   const [deletingBetId, setDeletingBetId] = useState<string | null>(null);
   const [coupleUsers, setCoupleUsers] = useState<{[key: string]: string}>({});
+  const realtimeSubscription = useRef<RealtimeSubscription | null>(null);
 
 
   const loadAllData = async () => {
@@ -251,6 +253,39 @@ export default function HomeScreen() {
     </View>
   );
 
+  // Setup real-time subscription
+  const setupRealtimeSubscription = async () => {
+    try {
+      // Clean up existing subscription
+      if (realtimeSubscription.current) {
+        realtimeSubscription.current.unsubscribe();
+      }
+
+      // Setup new subscription
+      realtimeSubscription.current = await subscribeToActiveBets({
+        onBetInsert: (newBet) => {
+          console.log('🔔 New bet inserted via real-time:', newBet);
+          setActiveBets(prevBets => [newBet, ...prevBets]);
+          setForceRefresh(prev => prev + 1);
+        },
+        onBetUpdate: (updatedBet) => {
+          console.log('🔔 Bet updated via real-time:', updatedBet);
+          setActiveBets(prevBets => 
+            prevBets.map(bet => bet.id === updatedBet.id ? updatedBet : bet)
+          );
+          setForceRefresh(prev => prev + 1);
+        },
+        onBetDelete: (deletedBetId) => {
+          console.log('🔔 Bet deleted via real-time:', deletedBetId);
+          setActiveBets(prevBets => prevBets.filter(bet => bet.id !== deletedBetId));
+          setForceRefresh(prev => prev + 1);
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error setting up real-time subscription:', error);
+    }
+  };
+
   useEffect(() => {
     const initializeApp = async () => {
       // Test Supabase connection first
@@ -262,16 +297,27 @@ export default function HomeScreen() {
       
       // Load data
       await loadAllData();
+      
+      // Setup real-time subscription
+      await setupRealtimeSubscription();
     };
     
     initializeApp();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (realtimeSubscription.current) {
+        realtimeSubscription.current.unsubscribe();
+      }
+    };
   }, []);
 
   // Reload data when screen comes into focus (e.g., after creating a bet)
   useFocusEffect(
     React.useCallback(() => {
-      console.log('🏠 Home screen focused - reloading data...');
+      console.log('🏠 Home screen focused - reloading data and setting up real-time...');
       loadAllData();
+      setupRealtimeSubscription();
     }, [])
   );
 
