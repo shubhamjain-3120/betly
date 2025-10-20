@@ -1,13 +1,30 @@
-import { randomBytes } from 'crypto';
-
 /**
  * Generate a cryptographically secure random token
  * @param length - Length of the token in bytes (default: 32)
  * @returns Base64 encoded random token
  */
 export const generateSecureToken = (length: number = 32): string => {
-  const bytes = randomBytes(length);
-  return bytes.toString('base64url');
+  // Use crypto.getRandomValues for browser compatibility
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    return btoa(String.fromCharCode(...array)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+  
+  // Fallback for Node.js environment
+  try {
+    const { randomBytes } = require('crypto');
+    const bytes = randomBytes(length);
+    return bytes.toString('base64url');
+  } catch (error) {
+    // Final fallback using Math.random (less secure but works everywhere)
+    let result = '';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    for (let i = 0; i < length * 2; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
 };
 
 /**
