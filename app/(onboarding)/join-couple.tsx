@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
-import { canJoinCouple, isValidCoupleCode } from '../../lib/coupleCode';
-import { generateAuthToken } from '../../lib/auth';
+import { canJoinCouple, canRejoinCouple, isValidCoupleCode } from '../../lib/coupleCode';
+import { generateAuthToken, getStoredAuthToken } from '../../lib/auth';
 
 export default function JoinCoupleScreen() {
   const navigation = useNavigation();
@@ -25,26 +25,25 @@ export default function JoinCoupleScreen() {
   const handleJoinCouple = async () => {
     console.log('🚀 Starting join couple process...');
     
-    if (!name.trim()) {
-      console.log('❌ No name provided');
-      Alert.alert('Error', 'Please enter your name');
-      return;
-    }
-
-    if (!coupleCode.trim()) {
-      console.log('❌ No couple code provided');
-      Alert.alert('Error', 'Please enter the couple code');
-      return;
-    }
-
-    const code = coupleCode.trim().toUpperCase();
-    console.log('🔍 Validating couple code:', code);
+    // Validate inputs
+    const { validateName, validateCoupleCode } = require('../../lib/validation');
     
-    if (!isValidCoupleCode(code)) {
-      console.log('❌ Invalid couple code format:', code);
-      Alert.alert('Error', 'Please enter a valid 6-character code');
+    const nameValidation = validateName(name);
+    if (!nameValidation.isValid) {
+      console.log('❌ Name validation failed:', nameValidation.error);
+      Alert.alert('Error', nameValidation.error);
       return;
     }
+
+    const codeValidation = validateCoupleCode(coupleCode);
+    if (!codeValidation.isValid) {
+      console.log('❌ Couple code validation failed:', codeValidation.error);
+      Alert.alert('Error', codeValidation.error);
+      return;
+    }
+
+    const code = codeValidation.sanitized;
+    console.log('🔍 Validated couple code:', code);
 
     console.log('✅ Couple code format is valid');
     setIsJoining(true);
@@ -52,14 +51,28 @@ export default function JoinCoupleScreen() {
     try {
       console.log('🔍 Checking if couple can accept new member...');
       
-      // Check if couple can accept new member
-      const canJoin = await canJoinCouple(code);
-      console.log('📊 Can join couple result:', canJoin);
+      // First, check if this is an existing user trying to rejoin
+      const storedAuthToken = await getStoredAuthToken();
+      let isRejoining = false;
       
-      if (!canJoin) {
-        console.log('❌ Cannot join couple - invalid code or already full');
-        Alert.alert('Error', 'Invalid couple code or couple is already full');
-        return;
+      if (storedAuthToken) {
+        console.log('🔍 Checking if user can rejoin existing couple...');
+        isRejoining = await canRejoinCouple(code, storedAuthToken);
+        console.log('📊 Can rejoin couple result:', isRejoining);
+      }
+      
+      if (!isRejoining) {
+        // Check if couple can accept new member
+        const canJoin = await canJoinCouple(code);
+        console.log('📊 Can join couple result:', canJoin);
+        
+        if (!canJoin) {
+          console.log('❌ Cannot join couple - invalid code or already full');
+          Alert.alert('Error', 'Invalid couple code or couple is already full');
+          return;
+        }
+      } else {
+        console.log('✅ User can rejoin existing couple');
       }
 
       // Get couple info
@@ -84,41 +97,62 @@ export default function JoinCoupleScreen() {
       const couple = couples[0];
       console.log('✅ Found couple:', couple.id);
 
-      // Generate auth token
-      console.log('🔑 Generating auth token...');
-      const authToken = generateAuthToken();
-      console.log('✅ Auth token generated');
+      let user;
+      let authToken;
 
-      // Create user record
-      console.log('👤 Creating user record...');
-      const { data: users, error: userError } = await supabase
-        .from('users')
-        .insert({
-          name: name.trim(),
-          auth_token: authToken,
-          couple_id: couple.id,
-          is_paired: false,
-        })
-        .select();
+      if (isRejoining) {
+        // User is rejoining - get existing user data
+        console.log('🔄 User is rejoining existing couple...');
+        const { data: existingUsers, error: existingUserError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('couple_id', couple.id)
+          .eq('auth_token', storedAuthToken);
 
-      if (userError) {
-        console.error('❌ Error creating user:', userError);
-        throw userError;
+        if (existingUserError || !existingUsers || existingUsers.length === 0) {
+          console.error('❌ Error fetching existing user:', existingUserError);
+          throw new Error('Failed to find existing user');
+        }
+
+        user = existingUsers[0];
+        authToken = storedAuthToken;
+        console.log('✅ Found existing user:', user.id);
+      } else {
+        // New user - generate auth token and create user record
+        console.log('🔑 Generating auth token...');
+        authToken = generateAuthToken();
+        console.log('✅ Auth token generated');
+
+        console.log('👤 Creating user record...');
+        const { data: users, error: userError } = await supabase
+          .from('users')
+          .insert({
+            name: nameValidation.sanitized,
+            auth_token: authToken,
+            couple_id: couple.id,
+            is_paired: false,
+          })
+          .select();
+
+        if (userError) {
+          console.error('❌ Error creating user:', userError);
+          throw userError;
+        }
+
+        if (!users || users.length === 0) {
+          console.error('❌ No user data returned after creation');
+          throw new Error('Failed to create user');
+        }
+
+        user = users[0];
+        console.log('✅ User created:', user.id);
       }
 
-      if (!users || users.length === 0) {
-        console.error('❌ No user data returned after creation');
-        throw new Error('Failed to create user');
-      }
-
-      const user = users[0];
-      console.log('✅ User created:', user.id);
-
-      // Get the existing partner
+      // Get the existing partner (look for any user in the couple who is not the current user)
       console.log('🔍 Looking for existing partner in couple:', couple.id);
       const { data: partners, error: partnerError } = await supabase
         .from('users')
-        .select('id, name')
+        .select('id, name, is_paired')
         .eq('couple_id', couple.id)
         .neq('id', user.id);
 
@@ -135,7 +169,7 @@ export default function JoinCoupleScreen() {
       }
 
       const partner = partners[0];
-      console.log('✅ Found partner:', partner.name, partner.id);
+      console.log('✅ Found partner:', partner.name, partner.id, 'is_paired:', partner.is_paired);
 
       // Update both users to be paired
       console.log('🔗 Updating user to be paired with partner...');

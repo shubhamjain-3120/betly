@@ -71,3 +71,4 @@ The real-time functionality includes detailed logging:
 - `@supabase/supabase-js` (v2.75.0) - Provides real-time capabilities
 - Supabase database with Row Level Security (RLS) enabled
 - WebSocket connection for real-time communication
+

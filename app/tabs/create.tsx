@@ -27,25 +27,36 @@ export default function CreateBetScreen() {
     console.log('🚀 Create bet button pressed!');
     console.log('📝 Form data:', { title, amount, optionA, optionB, selectedOption });
     
-    // Validation
-    if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a bet title');
+    // Comprehensive input validation
+    const { validateTitle, validateAmount, validateOption, validateCreatorChoice } = require('../../lib/validation');
+    
+    const titleValidation = validateTitle(title);
+    if (!titleValidation.isValid) {
+      Alert.alert('Error', titleValidation.error);
       return;
     }
-    if (!amount.trim() || isNaN(Number(amount)) || Number(amount) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
+    
+    const amountValidation = validateAmount(amount);
+    if (!amountValidation.isValid) {
+      Alert.alert('Error', amountValidation.error);
       return;
     }
-    if (!optionA.trim()) {
-      Alert.alert('Error', 'Please enter option A');
+    
+    const optionAValidation = validateOption(optionA);
+    if (!optionAValidation.isValid) {
+      Alert.alert('Error', `Option A: ${optionAValidation.error}`);
       return;
     }
-    if (!optionB.trim()) {
-      Alert.alert('Error', 'Please enter option B');
+    
+    const optionBValidation = validateOption(optionB);
+    if (!optionBValidation.isValid) {
+      Alert.alert('Error', `Option B: ${optionBValidation.error}`);
       return;
     }
-    if (!selectedOption) {
-      Alert.alert('Error', 'Please select which option you are betting on');
+    
+    const choiceValidation = validateCreatorChoice(selectedOption || '');
+    if (!choiceValidation.isValid) {
+      Alert.alert('Error', choiceValidation.error);
       return;
     }
 
@@ -73,6 +84,13 @@ export default function CreateBetScreen() {
         return;
       }
 
+      // Verify user belongs to the couple they're trying to create a bet for
+      if (user.couple_id !== coupleId) {
+        console.error('❌ Authorization failed - user not in couple');
+        Alert.alert('Error', 'You are not authorized to create bets for this couple');
+        return;
+      }
+
       // Create bet in Supabase database - immediately active
       console.log('💾 Inserting bet into database...');
       console.log('👤 User ID:', user.id);
@@ -81,12 +99,12 @@ export default function CreateBetScreen() {
       const { data, error } = await supabase
         .from('bets')
         .insert({
-          title: title.trim(),
-          amount: Number(amount),
-          option_a: optionA.trim(),
-          option_b: optionB.trim(),
+          title: titleValidation.sanitized,
+          amount: amountValidation.sanitized,
+          option_a: optionAValidation.sanitized,
+          option_b: optionBValidation.sanitized,
           creator_id: user.id,
-          creator_choice: selectedOption,
+          creator_choice: choiceValidation.sanitized,
           status: 'active', // Immediately active, no approval needed
           couple_id: coupleId,
         })

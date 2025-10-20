@@ -1,19 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Try to import config, fall back to placeholders if not available
-let supabaseUrl = 'YOUR_SUPABASE_URL';
-let supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+// Load configuration from environment variables
+let supabaseUrl = process.env.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+let supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
 
-try {
-  const config = require('../config');
-  if (config.SUPABASE_CONFIG) {
-    supabaseUrl = config.SUPABASE_CONFIG.url;
-    supabaseAnonKey = config.SUPABASE_CONFIG.anonKey;
-    console.log('✅ Supabase config loaded successfully');
+// Fallback to config file for development (deprecated)
+if (supabaseUrl === 'YOUR_SUPABASE_URL' || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
+  try {
+    const config = require('../config');
+    if (config.SUPABASE_CONFIG) {
+      supabaseUrl = config.SUPABASE_CONFIG.url;
+      supabaseAnonKey = config.SUPABASE_CONFIG.anonKey;
+      console.warn('⚠️  Using deprecated config.ts file. Please use environment variables instead.');
+    }
+  } catch (error) {
+    // Config file doesn't exist, use placeholders
+    console.warn('📝 No environment variables or config.ts found. Using placeholder values.');
   }
-} catch (error) {
-  // Config file doesn't exist, use placeholders
-  console.warn('📝 No config.ts found. Using placeholder values.');
 }
 
 // Validate configuration
@@ -30,9 +33,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Debug: Log the configuration being used
-console.log('🔧 Supabase URL:', supabaseUrl);
-console.log('🔧 Supabase Key (first 20 chars):', supabaseAnonKey.substring(0, 20) + '...');
+// Debug: Log the configuration being used (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  console.log('🔧 Supabase URL:', supabaseUrl);
+  console.log('🔧 Supabase Key (first 20 chars):', supabaseAnonKey.substring(0, 20) + '...');
+}
 
 // Database types
 export interface User {

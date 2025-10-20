@@ -23,7 +23,9 @@ export const storeAuthToken = async (token: string): Promise<void> => {
   try {
     await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
   } catch (error) {
-    console.error('Error storing auth token:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error storing auth token:', error);
+    }
     throw error;
   }
 };
@@ -33,7 +35,9 @@ export const getStoredAuthToken = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(AUTH_TOKEN_KEY);
   } catch (error) {
-    console.error('Error getting auth token:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error getting auth token:', error);
+    }
     return null;
   }
 };
@@ -43,7 +47,9 @@ export const clearAuthToken = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
   } catch (error) {
-    console.error('Error clearing auth token:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error clearing auth token:', error);
+    }
     throw error;
   }
 };
@@ -53,6 +59,14 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
   try {
     const token = await getStoredAuthToken();
     if (!token) return null;
+
+    // Check if token is expired
+    const { isTokenExpired, isValidTokenFormat } = require('./security');
+    if (!isValidTokenFormat(token) || isTokenExpired(token)) {
+      console.warn('Token is invalid or expired, clearing auth');
+      await clearAuthToken();
+      return null;
+    }
 
     const { data, error } = await supabase
       .from('users')
@@ -67,13 +81,17 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
       .eq('auth_token', token);
 
     if (error || !data || data.length === 0) {
-      console.error('Error fetching user:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error fetching user:', error);
+      }
       return null;
     }
 
     return data[0] as AuthUser;
   } catch (error) {
-    console.error('Error getting current user:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error getting current user:', error);
+    }
     return null;
   }
 };
@@ -90,13 +108,17 @@ export const getCurrentCouple = async (): Promise<Couple | null> => {
       .eq('id', user.couple_id);
 
     if (error || !data || data.length === 0) {
-      console.error('Error fetching couple:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error fetching couple:', error);
+      }
       return null;
     }
 
     return data[0] as Couple;
   } catch (error) {
-    console.error('Error getting current couple:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error getting current couple:', error);
+    }
     return null;
   }
 };
@@ -107,7 +129,9 @@ export const isAuthenticated = async (): Promise<boolean> => {
     const user = await getCurrentUser();
     return user !== null;
   } catch (error) {
-    console.error('Error checking authentication:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error checking authentication:', error);
+    }
     return false;
   }
 };
@@ -122,7 +146,9 @@ export const loginWithToken = async (token: string): Promise<AuthUser | null> =>
     const user = await getCurrentUser();
     return user;
   } catch (error) {
-    console.error('Error logging in with token:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error logging in with token:', error);
+    }
     return null;
   }
 };
@@ -132,12 +158,15 @@ export const logout = async (): Promise<void> => {
   try {
     await clearAuthToken();
   } catch (error) {
-    console.error('Error logging out:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error logging out:', error);
+    }
     throw error;
   }
 };
 
-// Generate auth token
+// Generate auth token using secure method
 export const generateAuthToken = (): string => {
-  return 'token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  const { generateAuthToken: secureGenerateAuthToken } = require('./security');
+  return secureGenerateAuthToken();
 };

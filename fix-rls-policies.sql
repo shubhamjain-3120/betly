@@ -56,3 +56,4 @@ GRANT ALL ON bets TO anon, authenticated;
 
 -- Grant sequence permissions
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+

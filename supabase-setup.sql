@@ -57,10 +57,63 @@ ALTER TABLE couples ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bets ENABLE ROW LEVEL SECURITY;
 
--- Create policies for RLS (simplified for now - will be enhanced with proper auth)
-CREATE POLICY "Allow all operations on couples" ON couples FOR ALL USING (true);
-CREATE POLICY "Allow all operations on users" ON users FOR ALL USING (true);
-CREATE POLICY "Allow all operations on bets" ON bets FOR ALL USING (true);
+-- Create secure policies for RLS with couple-based data isolation
+-- Users can only access data from their own couple
+
+-- Couples table: Users can only access couples they belong to
+CREATE POLICY "Users can only access their own couple" ON couples 
+  FOR ALL 
+  USING (
+    id IN (
+      SELECT couple_id FROM users 
+      WHERE auth_token = current_setting('request.jwt.claims', true)::json->>'auth_token'
+    )
+  )
+  WITH CHECK (
+    -- Allow creation if user is creating their own couple
+    created_by_user_id IN (
+      SELECT id FROM users 
+      WHERE auth_token = current_setting('request.jwt.claims', true)::json->>'auth_token'
+    )
+  );
+
+-- Users table: Users can only see users in their couple
+CREATE POLICY "Users can only see their couple members" ON users 
+  FOR ALL 
+  USING (
+    couple_id IN (
+      SELECT couple_id FROM users 
+      WHERE auth_token = current_setting('request.jwt.claims', true)::json->>'auth_token'
+    )
+  )
+  WITH CHECK (
+    -- Allow creation if user is joining their couple
+    couple_id IN (
+      SELECT couple_id FROM users 
+      WHERE auth_token = current_setting('request.jwt.claims', true)::json->>'auth_token'
+    )
+  );
+
+-- Bets table: Users can only access bets from their couple
+CREATE POLICY "Users can only access their couple's bets" ON bets 
+  FOR ALL 
+  USING (
+    couple_id IN (
+      SELECT couple_id FROM users 
+      WHERE auth_token = current_setting('request.jwt.claims', true)::json->>'auth_token'
+    )
+  )
+  WITH CHECK (
+    -- Allow creation if user is in the couple and is the creator
+    couple_id IN (
+      SELECT couple_id FROM users 
+      WHERE auth_token = current_setting('request.jwt.claims', true)::json->>'auth_token'
+    ) AND
+    creator_id IN (
+      SELECT id FROM users 
+      WHERE auth_token = current_setting('request.jwt.claims', true)::json->>'auth_token'
+    )
+  );
 
 -- Create first couple for existing hardcoded users
 INSERT INTO couples (id, couple_code, created_by_user_id) VALUES 

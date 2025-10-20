@@ -33,7 +33,7 @@ export default function HistoryScreen() {
         return;
       }
 
-      // Load concluded bets for current couple
+      // Load concluded bets for current couple with authorization check
       const { data: concludedBets, error: betsError } = await supabase
         .from('bets')
         .select('*')

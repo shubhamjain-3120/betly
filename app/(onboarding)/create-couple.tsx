@@ -26,8 +26,12 @@ export default function CreateCoupleScreen() {
   const [authToken, setAuthToken] = useState('');
 
   const handleCreateCouple = async () => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+    // Validate name input
+    const { validateName } = require('../../lib/validation');
+    const nameValidation = validateName(name);
+    
+    if (!nameValidation.isValid) {
+      Alert.alert('Error', nameValidation.error);
       return;
     }
 
@@ -68,7 +72,7 @@ export default function CreateCoupleScreen() {
       const { data: users, error: userError } = await supabase
         .from('users')
         .insert({
-          name: name.trim(),
+          name: nameValidation.sanitized,
           auth_token: authToken,
           couple_id: couple.id,
           is_paired: false,

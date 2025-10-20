@@ -1,5 +1,6 @@
 import { supabase, getCurrentCoupleId } from './supabase';
 import { Bet } from './supabase';
+import { getCurrentUser } from './auth';
 
 export interface RealtimeSubscription {
   unsubscribe: () => void;
@@ -11,14 +12,57 @@ export interface RealtimeCallbacks {
   onBetDelete?: (betId: string) => void;
 }
 
+// Helper function to validate realtime setup
+export const validateRealtimeSetup = async (): Promise<boolean> => {
+  try {
+    console.log('🔍 Validating realtime setup...');
+    
+    // Check if user is authenticated
+    const user = await getCurrentUser();
+    if (!user) {
+      console.error('❌ No authenticated user found');
+      return false;
+    }
+    
+    console.log('✅ User authenticated:', user.name, user.id);
+    
+    // Check if user has a couple
+    if (!user.couple_id) {
+      console.error('❌ User has no couple_id');
+      return false;
+    }
+    
+    console.log('✅ User has couple_id:', user.couple_id);
+    
+    // Check if user is paired
+    if (!user.is_paired) {
+      console.warn('⚠️ User is not paired - realtime may not work properly');
+    } else {
+      console.log('✅ User is paired with partner:', user.partner_id);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Error validating realtime setup:', error);
+    return false;
+  }
+};
+
 /**
  * Subscribe to real-time changes for bets in the current couple
  */
 export const subscribeToBets = async (callbacks: RealtimeCallbacks): Promise<RealtimeSubscription> => {
   try {
+    // Validate setup first
+    const isValid = await validateRealtimeSetup();
+    if (!isValid) {
+      throw new Error('Realtime setup validation failed');
+    }
+    
     const coupleId = await getCurrentCoupleId();
     if (!coupleId) {
       console.error('❌ No couple ID found for real-time subscription');
+      console.error('❌ This usually means the user is not properly authenticated or not in a couple');
       throw new Error('No couple ID found');
     }
 
@@ -83,9 +127,16 @@ export const subscribeToBets = async (callbacks: RealtimeCallbacks): Promise<Rea
  */
 export const subscribeToActiveBets = async (callbacks: RealtimeCallbacks): Promise<RealtimeSubscription> => {
   try {
+    // Validate setup first
+    const isValid = await validateRealtimeSetup();
+    if (!isValid) {
+      throw new Error('Realtime setup validation failed');
+    }
+    
     const coupleId = await getCurrentCoupleId();
     if (!coupleId) {
       console.error('❌ No couple ID found for active bets subscription');
+      console.error('❌ This usually means the user is not properly authenticated or not in a couple');
       throw new Error('No couple ID found');
     }
 
@@ -150,9 +201,16 @@ export const subscribeToActiveBets = async (callbacks: RealtimeCallbacks): Promi
  */
 export const subscribeToConcludedBets = async (callbacks: RealtimeCallbacks): Promise<RealtimeSubscription> => {
   try {
+    // Validate setup first
+    const isValid = await validateRealtimeSetup();
+    if (!isValid) {
+      throw new Error('Realtime setup validation failed');
+    }
+    
     const coupleId = await getCurrentCoupleId();
     if (!coupleId) {
       console.error('❌ No couple ID found for concluded bets subscription');
+      console.error('❌ This usually means the user is not properly authenticated or not in a couple');
       throw new Error('No couple ID found');
     }
 

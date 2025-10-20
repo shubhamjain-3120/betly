@@ -47,7 +47,7 @@ export default function HomeScreen() {
 
       console.log('💑 Couple ID:', coupleId);
 
-      // Load active bets for current couple
+      // Load active bets for current couple with authorization check
       const { data: activeData, error: activeError } = await supabase
         .from('bets')
         .select('*')
@@ -163,20 +163,37 @@ export default function HomeScreen() {
 
   const concludeBet = async (bet: Bet, winnerOption: 'a' | 'b') => {
     try {
+      // Get current user to ensure authorization
+      const { getCurrentUser } = await import('../../lib/auth');
+      const currentUser = await getCurrentUser();
+      
+      if (!currentUser) {
+        Alert.alert('Error', 'You must be logged in to conclude bets');
+        return;
+      }
+
+      // Validate winner option
+      const { validateWinnerOption } = require('../../lib/validation');
+      const winnerValidation = validateWinnerOption(winnerOption);
+      if (!winnerValidation.isValid) {
+        Alert.alert('Error', winnerValidation.error);
+        return;
+      }
+
       const { error } = await supabase
         .from('bets')
         .update({
           status: 'concluded',
-          winner_option: winnerOption,
+          winner_option: winnerValidation.sanitized,
           concluded_at: new Date().toISOString(),
-          concluded_by_id: '00000000-0000-0000-0000-000000000001', // You
+          concluded_by_id: currentUser.id, // Use actual authenticated user ID
         })
         .eq('id', bet.id);
 
       if (error) throw error;
 
       // Update user streaks and scores
-      await updateUserStats(bet, winnerOption);
+      await updateUserStats(bet, winnerValidation.sanitized);
       
       setModalVisible(false);
       setSelectedBet(null);
@@ -190,12 +207,29 @@ export default function HomeScreen() {
   const deleteBet = async (bet: Bet) => {
     try {
       console.log('🗑️ Delete button pressed for bet:', bet.id, bet.title);
+      
+      // Get current user to ensure authorization
+      const { getCurrentUser } = await import('../../lib/auth');
+      const currentUser = await getCurrentUser();
+      
+      if (!currentUser) {
+        Alert.alert('Error', 'You must be logged in to delete bets');
+        return;
+      }
+
+      // Verify user is the creator of this bet
+      if (bet.creator_id !== currentUser.id) {
+        Alert.alert('Error', 'You can only delete bets you created');
+        return;
+      }
+
       setDeletingBetId(bet.id);
       
       const { data, error } = await supabase
         .from('bets')
         .delete()
         .eq('id', bet.id)
+        .eq('creator_id', currentUser.id) // Double-check authorization at database level
         .select();
 
       console.log('🗑️ Delete result:', { data, error });
