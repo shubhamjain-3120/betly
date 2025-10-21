@@ -1,4 +1,10 @@
-{
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+
+// Read the original web config (backup)
+const webConfig = {
   "expo": {
     "name": "betly",
     "slug": "betly",
@@ -27,4 +33,11 @@
       "favicon": "./assets/favicon.png"
     }
   }
-}
+};
+
+// Write the web config
+fs.writeFileSync('./app.json', JSON.stringify(webConfig, null, 2));
+
+console.log('✅ Switched to web/Expo development configuration');
+console.log('🌐 App name: betly');
+console.log('🔧 Ready for web development');

@@ -43,3 +43,6 @@ config.ts
 /ios
 /android
 .vercel
+
+# Local Netlify folder
+.netlify

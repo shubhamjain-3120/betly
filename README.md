@@ -1,4 +1,4 @@
-# Bet Platform - iOS App
+# betly - iOS App
 
 A fun betting platform for couples to track friendly wagers and maintain a competitive leaderboard.
 

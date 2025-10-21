@@ -1,5 +1,5 @@
 {
-  "name": "bet-platform",
+  "name": "betly",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -7,9 +7,14 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build": "expo export --platform web --output-dir dist",
+    "build": "expo export --platform web --output-dir dist && cp privacy-policy.html dist/privacy.html",
     "vercel-build": "expo export --platform web",
-    "netlify-build": "expo export --platform web"
+    "netlify-build": "expo export --platform web",
+    "switch:android": "node switch-to-android.js",
+    "switch:web": "node switch-to-web.js",
+    "android:dev": "eas build --platform android --profile android-dev",
+    "android:preview": "eas build --platform android --profile android-preview",
+    "android:production": "npm run switch:android && eas build --platform android --profile android-production && npm run switch:web"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -18,6 +23,7 @@
     "@react-navigation/stack": "^7.4.10",
     "@supabase/supabase-js": "^2.75.0",
     "expo": "~54.0.13",
+    "expo-dev-client": "~6.0.15",
     "expo-status-bar": "~3.0.8",
     "react": "19.1.0",
     "react-dom": "19.1.0",
