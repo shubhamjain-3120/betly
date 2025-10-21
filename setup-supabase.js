@@ -14,7 +14,7 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-console.log('🚀 Bet Platform - Supabase Setup');
+console.log('🚀 betly - Supabase Setup');
 console.log('================================\n');
 
 console.log('This script will help you configure your Supabase credentials.');

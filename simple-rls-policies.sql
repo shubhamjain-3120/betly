@@ -1,4 +1,4 @@
--- Simple RLS Policies for Bet Platform
+-- Simple RLS Policies for betly
 -- Minimal policies to avoid recursion issues
 -- 
 -- This file contains the simplest possible RLS policies that just enable

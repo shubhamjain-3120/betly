@@ -365,7 +365,7 @@ export default function HomeScreen() {
       >
                 {/* Header */}
                 <View style={styles.header}>
-                  <Text style={styles.headerTitle}>Bet Platform</Text>
+                  <Text style={styles.headerTitle}>🪙 betly</Text>
                 </View>
 
         {/* Stats Summary */}

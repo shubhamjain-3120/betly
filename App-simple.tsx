@@ -4,7 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🎯 Bet Platform</Text>
+      <Text style={styles.title}>🪙 betly</Text>
       <Text style={styles.subtitle}>Ready to start betting!</Text>
       <Text style={styles.info}>
         This is a simple test to verify the app is working.

@@ -130,7 +130,7 @@ export default function SettingsScreen() {
             <Text style={styles.sectionTitle}>App Info</Text>
             
             <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>Bet Platform</Text>
+              <Text style={styles.infoTitle}>betly</Text>
               <Text style={styles.infoText}>Version 1.0.0</Text>
               <Text style={styles.infoText}>Built with React Native & Supabase</Text>
             </View>

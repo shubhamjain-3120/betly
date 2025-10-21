@@ -1,4 +1,4 @@
--- Advanced RLS Policies for Bet Platform
+-- Advanced RLS Policies for betly
 -- These policies provide better security while working with custom auth_token system
 -- 
 -- IMPORTANT: This is an alternative approach that provides more security

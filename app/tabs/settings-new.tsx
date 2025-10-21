@@ -160,7 +160,7 @@ export default function SettingsScreen() {
   const shareCoupleCode = async (code: string) => {
     try {
       await Share.share({
-        message: `Join me on Bet Together! Use this code: ${code}`,
+        message: `Join me on betly! Use this code: ${code}`,
         title: 'Join my betting couple!',
       });
     } catch (error) {
@@ -297,7 +297,7 @@ export default function SettingsScreen() {
 
           {/* Info Section */}
           <View style={styles.infoSection}>
-            <Text style={styles.infoTitle}>About Bet Together</Text>
+            <Text style={styles.infoTitle}>About betly</Text>
             <Text style={styles.infoText}>
               A fun way for couples to bet on anything and track who's winning! 
               Create bets, see your stats, and enjoy some friendly competition.

@@ -1,4 +1,4 @@
--- Secure RLS Policies for Bet Platform
+-- Secure RLS Policies for betly
 -- These policies work with the custom auth_token system
 -- 
 -- IMPORTANT: Run this in your Supabase SQL Editor to replace existing policies

@@ -5,7 +5,7 @@ I've created a simple test version. Try this:
 
 1. **Open Expo Go** on your iPhone
 2. **Scan the QR code** from the terminal
-3. **You should see**: "🎯 Bet Platform - Ready to start betting!"
+3. **You should see**: "🪙 betly - Ready to start betting!"
 
 If this works, the basic setup is correct.
 

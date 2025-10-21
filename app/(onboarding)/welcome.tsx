@@ -15,8 +15,8 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>💕</Text>
-          <Text style={styles.appName}>Bet Together</Text>
+          <Text style={styles.logo}>🪙</Text>
+          <Text style={styles.appName}>betly</Text>
           <Text style={styles.tagline}>Make betting fun with your partner</Text>
         </View>
 

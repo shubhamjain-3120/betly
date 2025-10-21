@@ -1,6 +1,6 @@
 # Supabase Setup Guide
 
-Follow these steps to set up your Supabase backend for the Bet Platform app.
+Follow these steps to set up your Supabase backend for the betly app.
 
 ## 1. Create Supabase Project
 
