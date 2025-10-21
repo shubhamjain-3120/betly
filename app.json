@@ -13,18 +13,35 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.coupleofwagers.app"
     },
     "android": {
+      "package": "com.coupleofwagers.app",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "privacy": "https://your-privacy-policy-url.com",
+    "extra": {
+      "eas": {
+        "projectId": "d2dc2cc4-763b-4d15-a6f9-86cb5dce7240"
+      }
+    },
+    "owner": "modulus2025"
+  },
+  "web": {
+    "favicon": "./assets/favicon.png"
   }
 }

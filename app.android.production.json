@@ -14,11 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.betly.app"
+      "bundleIdentifier": "com.coupleofwagers.app"
     },
     "android": {
-      "package": "com.betly.app",
-      "versionCode": 1,
+      "package": "com.coupleofwagers.app",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
