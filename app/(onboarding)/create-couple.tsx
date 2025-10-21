@@ -116,7 +116,7 @@ export default function CreateCoupleScreen() {
   const shareCoupleCode = async (code: string) => {
     try {
       await Share.share({
-        message: `Join me on betly! Use this code: ${code}`,
+        message: `Join me on betly! Use this code: ${code}\n\nDownload the app: https://curious-faun-5ac1bd.netlify.app/`,
         title: 'Join my betting couple!',
       });
     } catch (error) {
